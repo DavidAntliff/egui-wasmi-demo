@@ -1,11 +1,23 @@
 use egui::emath::RectTransform;
 use egui::{Color32, Frame, Pos2, Rect, Sense, Vec2, emath};
-use wasmi::{Engine, Linker, Module, Store};
+use wasmi::{Engine, Linker, Module, Store, TypedFunc};
 
-#[derive(Default)]
-pub struct TemplateApp {}
+const FPS: f32 = 30.0;
 
-impl TemplateApp {
+pub struct DemoApp {
+    counter: u64,
+    guest_state: GuestState,
+}
+
+pub struct GuestState {
+    _engine: Engine,
+    store: Store<()>,
+    _linker: Linker<()>,
+
+    add: TypedFunc<(i32, i32), i32>,
+}
+
+impl DemoApp {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -38,18 +50,34 @@ impl TemplateApp {
             .expect("Failed to call 'add' function");
         log::info!("add(41, 1) returned: {result}");
 
-        Default::default()
+        Self {
+            counter: 0,
+            guest_state: GuestState {
+                _engine: engine,
+                store,
+                _linker: linker,
+                add: add_func,
+            },
+        }
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for DemoApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        update_ui(ctx, _frame);
+        let x = self
+            .guest_state
+            .add
+            .call(&mut self.guest_state.store, (2, 3))
+            .expect("Failed to call 'add' function");
+        log::info!("add(2, 3) returned: {x}");
+        update_ui(ctx, _frame, self.counter);
+        ctx.request_repaint_after(std::time::Duration::from_millis((1000.0 / FPS) as u64));
+        self.counter += 1;
     }
 }
 
-fn update_ui(ctx: &egui::Context, _frame: &mut eframe::Frame) {
+fn update_ui(ctx: &egui::Context, _frame: &mut eframe::Frame, counter: u64) {
     // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
     // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -130,7 +158,11 @@ fn update_ui(ctx: &egui::Context, _frame: &mut eframe::Frame) {
                     let cell_canvas = grid_to_canvas.transform_rect(cell_local);
                     let cell_screen = to_screen.transform_rect(cell_canvas);
 
-                    let color = Color32::from_rgb(20, 20, 20);
+                    let color = if row * COLS + col == (counter as usize % (ROWS * COLS)) {
+                        Color32::from_rgb(200, 200, 200)
+                    } else {
+                        Color32::from_rgb(20, 20, 20)
+                    };
                     grid_shapes.push(egui::Shape::rect_filled(cell_screen, 1.0, color));
                 }
             }

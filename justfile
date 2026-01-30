@@ -1,4 +1,4 @@
-export RUST_LOG := 'debug'
+export RUST_LOG := 'info'
 
 default:
     just --list
