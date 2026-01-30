@@ -65,7 +65,7 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("egui-eframe-demo");
+            ui.heading("egui-wasmi-demo");
 
             Frame::canvas(ui.style()).show(ui, |ui| {
                 //self.ui_content(ui);

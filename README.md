@@ -1,9 +1,9 @@
-# egui-eframe-demo
+# egui-wasmi-demo
 
-[![dependency status](https://deps.rs/repo/github/davidantliff/egui-eframe-demo/status.svg)](https://deps.rs/repo/github/davidantliff/egui-eframe-demo)
-[![Build Status](https://github.com/davidantliff/egui-eframe-demo/workflows/CI/badge.svg)](https://github.com/davidantliff/egui-eframe-demo/actions?workflow=CI)
+[![dependency status](https://deps.rs/repo/github/davidantliff/egui-wasmi-demo/status.svg)](https://deps.rs/repo/github/davidantliff/egui-wasmi-demo)
+[![Build Status](https://github.com/davidantliff/egui-wasmi-demo/workflows/CI/badge.svg)](https://github.com/davidantliff/egui-wasmi-demo/actions?workflow=CI)
 
-[Online Demo](https://davidantliff.github.io/egui-eframe-demo/)
+[Online Demo](https://davidantliff.github.io/egui-wasmi-demo/)
 
 ### Testing locally
 
