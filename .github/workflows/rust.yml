@@ -16,11 +16,15 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: wasm32-unknown-unknown
           override: true
+      - name: Build guest WASM
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: guest
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all-features
+          args: --all-features --manifest-path host/Cargo.toml
 
   check_wasm:
     name: Check wasm32
@@ -33,10 +37,13 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
           override: true
+      - name: Build guest WASM
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: guest
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all-features --lib --target wasm32-unknown-unknown
+          args: --all-features --lib --target wasm32-unknown-unknown --manifest-path host/Cargo.toml
 
   test:
     name: Test Suite
@@ -47,12 +54,16 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: wasm32-unknown-unknown
           override: true
+      - name: Build guest WASM
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: guest
       - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib
+          args: --lib --manifest-path host/Cargo.toml
 
   fmt:
     name: Rustfmt
@@ -68,7 +79,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --all --manifest-path host/Cargo.toml -- --check
 
   clippy:
     name: Clippy
@@ -79,12 +90,16 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: wasm32-unknown-unknown
           override: true
           components: clippy
+      - name: Build guest WASM
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: guest
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --manifest-path host/Cargo.toml -- -D warnings
 
   trunk:
     name: trunk
@@ -97,10 +112,20 @@ jobs:
           toolchain: 1.88.0
           target: wasm32-unknown-unknown
           override: true
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            host -> target
+            guest -> target
+      - name: Build guest WASM
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: guest
       - name: Download and install Trunk binary
         run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
       - name: Build
-        run: ./trunk build
+        run: ../trunk build
+        working-directory: host
 
   build:
     runs-on: ${{ matrix.os }}
@@ -137,9 +162,14 @@ jobs:
         toolchain: stable
         target: ${{ matrix.TARGET }}
         override: true
+    - name: Add wasm32 target for guest
+      run: rustup target add wasm32-unknown-unknown
+    - name: Build guest WASM
+      run: cargo build --release --target wasm32-unknown-unknown
+      working-directory: guest
 
     - uses: actions-rs/cargo@v1
       with:
         use-cross: true
         command: build
-        args: --verbose --release --target=${{ matrix.TARGET }}
+        args: --verbose --release --target=${{ matrix.TARGET }} --manifest-path host/Cargo.toml

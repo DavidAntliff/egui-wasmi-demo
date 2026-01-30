@@ -11,7 +11,8 @@ impl TemplateApp {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        let wasm_bytes = include_bytes!("../../guest/target/wasm32-unknown-unknown/release/guest.wasm");
+        let wasm_bytes =
+            include_bytes!("../../guest/target/wasm32-unknown-unknown/release/guest.wasm");
         log::info!("Initialising engine...");
         let engine = Engine::default();
         log::info!("Initialising module...");
