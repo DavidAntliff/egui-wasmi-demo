@@ -3,8 +3,8 @@ name = "egui-wasmi-demo"
 version = "0.1.0"
 authors = ["David Antliff <david.antliff@gmail.com>"]
 edition = "2024"
-include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.88"
+include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,6 +21,7 @@ eframe = { version = "0.33.0", default-features = false, features = [
     "x11",           # To support older Linux distributions (restores one of the default features)
 ] }
 log = "0.4.27"
+wasmi = "1.0.8"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -53,10 +54,7 @@ opt-level = 2
 # ----------------------------------------------------------------------------------------
 # Lints:
 
-[lints]
-workspace = true
-
-[workspace.lints.rust]
+[lints.rust]
 unsafe_code = "deny"
 
 elided_lifetimes_in_paths = "warn"
@@ -75,12 +73,12 @@ trivial_casts = "allow"
 unused_qualifications = "allow"
 
 
-[workspace.lints.rustdoc]
+[lints.rustdoc]
 all = "warn"
 missing_crate_level_docs = "warn"
 
 
-[workspace.lints.clippy]
+[lints.clippy]
 allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
 await_holding_lock = "warn"

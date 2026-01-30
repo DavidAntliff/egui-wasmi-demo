@@ -1,5 +1,6 @@
 use egui::emath::RectTransform;
 use egui::{Color32, Frame, Pos2, Rect, Sense, Vec2, emath};
+use wasmi::{Engine, Linker, Module, Store};
 
 #[derive(Default)]
 pub struct TemplateApp {}
@@ -9,6 +10,32 @@ impl TemplateApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+
+        let wasm_bytes = include_bytes!("../../guest/target/wasm32-unknown-unknown/release/guest.wasm");
+        log::info!("Initialising engine...");
+        let engine = Engine::default();
+        log::info!("Initialising module...");
+        let module = Module::new(&engine, wasm_bytes).expect("Failed to create module");
+        log::info!("Initialising store...");
+        let mut store = Store::new(&engine, ());
+        log::info!("Initialising linker...");
+        let linker = Linker::<()>::new(&engine);
+
+        log::info!("Instantiating instance...");
+        let instance = linker
+            .instantiate_and_start(&mut store, &module)
+            .expect("Failed to instantiate module");
+
+        log::info!("Fetching 'add' function...");
+        let add_func = instance
+            .get_typed_func::<(i32, i32), i32>(&mut store, "add")
+            .expect("Failed to get 'add' function");
+
+        log::info!("Calling 'add' function...");
+        let result = add_func
+            .call(&mut store, (41, 1))
+            .expect("Failed to call 'add' function");
+        log::info!("add(41, 1) returned: {result}");
 
         Default::default()
     }

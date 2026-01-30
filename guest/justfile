@@ -1,0 +1,24 @@
+build:
+    cargo build --release --target=wasm32-unknown-unknown
+
+opt: build
+    # Needs: cargo install wasm-opt
+    wasm-opt \
+        -O3 \
+        --strip-debug \
+        --strip-producers \
+        --vacuum \
+        --remove-unused-module-elements \
+        --simplify-locals \
+        --reorder-locals \
+        --coalesce-locals \
+        --flatten \
+        --local-cse \
+        -o target/wasm32-unknown-unknown/release/guest_opt.wasm \
+        target/wasm32-unknown-unknown/release/guest.wasm
+
+print:
+    wasm-tools print target/wasm32-unknown-unknown/release/guest.wasm
+
+clean:
+    cargo clean
