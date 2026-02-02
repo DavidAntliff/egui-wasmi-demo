@@ -862,6 +862,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasmi",
  "web-sys",
+ "web-time",
 ]
 
 [[package]]

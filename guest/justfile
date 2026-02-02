@@ -17,7 +17,7 @@ opt: build
         -o target/wasm32-unknown-unknown/release/guest_opt.wasm \
         target/wasm32-unknown-unknown/release/guest.wasm
 
-print:
+print: build
     wasm-tools print target/wasm32-unknown-unknown/release/guest.wasm
 
 clean:
