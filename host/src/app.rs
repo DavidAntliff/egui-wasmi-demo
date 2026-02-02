@@ -1,5 +1,5 @@
 use egui::emath::RectTransform;
-use egui::{emath, Color32, Frame, Pos2, Rect, Sense, Vec2};
+use egui::{Color32, Frame, Pos2, Rect, Sense, Vec2};
 use std::collections::VecDeque;
 use wasmi::{Engine, Linker, Memory, Module, Store, TypedFunc};
 use web_time::{Duration, Instant};
@@ -9,7 +9,6 @@ const FPS_WINDOW_SIZE: usize = 60;
 
 pub struct DemoApp {
     counter: u64,
-    start_time: Instant,
     frame_times: VecDeque<Instant>,
     guest_state: GuestState,
 }
@@ -21,7 +20,6 @@ pub struct GuestState {
     memory: Memory,
 
     // Guest exports
-    //add: TypedFunc<(i32, i32), i32>,
     buffer_ptr: TypedFunc<(), i32>,
     update: TypedFunc<u64, ()>,
 }
@@ -61,68 +59,28 @@ impl DemoApp {
             .get_memory(&store, "memory")
             .expect("Failed to get guest memory");
 
-        log::info!("Fetching 'mem_write' function...");
-        let mem_write = instance
-            .get_typed_func::<(u32, u32), ()>(&mut store, "mem_write")
-            .expect("Failed to get 'mem_write' function");
-
-        log::info!("Fetching 'mem_read' function...");
-        let mem_read = instance
-            .get_typed_func::<u32, u32>(&mut store, "mem_read")
-            .expect("Failed to get 'mem_read' function");
-
-        log::info!("Calling 'mem_write' function...");
-        mem_write
-            .call(&mut store, (0, 0xff))
-            .expect("Failed to call 'mem_write' function");
-        mem_write
-            .call(&mut store, (3, 0xaa))
-            .expect("Failed to call 'mem_write' function");
-
-        let data0 = mem_read
-            .call(&mut store, 0)
-            .expect("Failed to call 'mem_read' function");
-        dbg!(data0);
-
-        let data3 = mem_read
-            .call(&mut store, 3)
-            .expect("Failed to call 'mem_read' function");
-        dbg!(data3);
+        // log::info!("Fetching 'mem_write' function...");
+        // let mem_write = instance
+        //     .get_typed_func::<(u32, u32), ()>(&mut store, "mem_write")
+        //     .expect("Failed to get 'mem_write' function");
+        //
+        // log::info!("Fetching 'mem_read' function...");
+        // let _mem_read = instance
+        //     .get_typed_func::<u32, u32>(&mut store, "mem_read")
+        //     .expect("Failed to get 'mem_read' function");
+        //
+        // log::info!("Calling 'mem_write' function...");
+        // mem_write
+        //     .call(&mut store, (0, 0xff))
+        //     .expect("Failed to call 'mem_write' function");
+        // mem_write
+        //     .call(&mut store, (3, 0xaa))
+        //     .expect("Failed to call 'mem_write' function");
 
         log::info!("Fetching 'buffer_ptr' function...");
         let buffer_ptr = instance
             .get_typed_func::<(), i32>(&mut store, "buffer_ptr")
             .expect("Failed to get 'buffer_ptr' function");
-
-        // check the memory was written to
-        let ptr: i32 = buffer_ptr
-            .call(&mut store, ())
-            .expect("Failed to call 'buffer_ptr'");
-        let offset = ptr as usize;
-        dbg!(offset);
-
-        let mut buf = [0u8; 4];
-        // memory
-        //     .read(&store, offset, &mut buf)
-        //     .expect("Should read memory");
-        memory
-            .read(&store, offset, &mut buf)
-            .expect("Should read memory");
-        println!("After update: {:?}", buf);
-
-        let data = memory.data(&store);
-        log::info!("Memory at 0: {}", data[0]);
-
-        log::info!("Fetching 'add' function...");
-        let add_func = instance
-            .get_typed_func::<(i32, i32), i32>(&mut store, "add")
-            .expect("Failed to get 'add' function");
-
-        log::info!("Calling 'add' function...");
-        let result = add_func
-            .call(&mut store, (41, 1))
-            .expect("Failed to call 'add' function");
-        log::info!("add(41, 1) returned: {result}");
 
         log::info!("Fetching 'update' function...");
         let update_func = instance
@@ -141,14 +99,12 @@ impl DemoApp {
 
         Self {
             counter: 0,
-            start_time: Instant::now(),
             frame_times: VecDeque::with_capacity(FPS_WINDOW_SIZE),
             guest_state: GuestState {
                 _engine: engine,
                 store,
                 _linker: linker,
                 memory,
-                //add: add_func,
                 buffer_ptr,
                 update: update_func,
             },
@@ -156,13 +112,6 @@ impl DemoApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // let x = self
-        //     .guest_state
-        //     .add
-        //     .call(&mut self.guest_state.store, (2, 3))
-        //     .expect("Failed to call 'add' function");
-        // log::info!("add(2, 3) returned: {x}");
-
         self.guest_state
             .update
             .call(&mut self.guest_state.store, self.counter)
@@ -227,7 +176,7 @@ impl DemoApp {
                 let (response, painter) =
                     ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
 
-                let to_screen = emath::RectTransform::from_to(
+                let to_screen = RectTransform::from_to(
                     Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
                     response.rect,
                 );
@@ -315,6 +264,6 @@ impl DemoApp {
 impl eframe::App for DemoApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        DemoApp::update(self, ctx, _frame);
+        Self::update(self, ctx, _frame);
     }
 }
