@@ -27,4 +27,4 @@ clean:
 
 ci:
     just -f host/justfile ci
-
+    just -f guest/justfile ci

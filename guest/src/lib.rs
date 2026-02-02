@@ -38,6 +38,17 @@ static PIXEL_BUFFER: SyncWrapper<[u8; PIXEL_BUFFER_SIZE]> = SyncWrapper {
     inner: UnsafeCell::new([0u8; PIXEL_BUFFER_SIZE]),
 };
 
+//static STATIC_0001_IMAGE_DATA: &[u8] = include_bytes!("../assets/static-0001.raw");
+
+static ANIM_0001_IMAGE_DATA: [&[u8; 768]; 6] = [
+    include_bytes!("../assets/anim-0001_000.raw"),
+    include_bytes!("../assets/anim-0001_001.raw"),
+    include_bytes!("../assets/anim-0001_002.raw"),
+    include_bytes!("../assets/anim-0001_003.raw"),
+    include_bytes!("../assets/anim-0001_004.raw"),
+    include_bytes!("../assets/anim-0001_005.raw"),
+];
+
 #[unsafe(no_mangle)]
 pub extern "C" fn buffer_ptr() -> *mut u8 {
     PIXEL_BUFFER.inner.get() as *mut u8
@@ -68,11 +79,21 @@ pub extern "C" fn init() {
     let ptr = buffer_ptr();
     unsafe {
         core::ptr::write_bytes(ptr, 0, PIXEL_BUFFER_SIZE);
+        //core::ptr::copy_nonoverlapping(STATIC_0001_IMAGE_DATA.as_ptr(), ptr, PIXEL_BUFFER_SIZE);
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn update(frame: u64) {
+    if frame % 200 < 100 {
+        diagonal_rainbow(frame);
+    } else {
+        anim0001(frame);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn diagonal_rainbow(frame: u64) {
     let ptr = buffer_ptr();
 
     for y in 0..PIXEL_ROWS {
@@ -106,5 +127,18 @@ fn hsv_to_rgb(hue: u8) -> (u8, u8, u8) {
         3 => (0, 255 - offset as u8, 255), // Cyan -> Blue
         4 => (offset as u8, 0, 255),       // Blue -> Magenta
         _ => (255, 0, 255 - offset as u8), // Magenta -> Red
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn anim0001(frame: u64) {
+    let ptr = buffer_ptr();
+
+    // Scale down the frame number to control animation speed
+    let anim_frame = (frame / 16) % ANIM_0001_IMAGE_DATA.len() as u64;
+
+    let frame_data = ANIM_0001_IMAGE_DATA[anim_frame as usize];
+    unsafe {
+        core::ptr::copy_nonoverlapping(frame_data.as_ptr(), ptr, PIXEL_BUFFER_SIZE);
     }
 }
