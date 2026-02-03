@@ -23,6 +23,7 @@ pub struct GuestState {
     host_buffer_offset: u32,
 
     // Guest exports
+    init: TypedFunc<(), ()>,
     update: TypedFunc<(u64, u64, u32), u32>,
 }
 
@@ -112,9 +113,23 @@ impl DemoApp {
                 _linker: linker,
                 memory,
                 host_buffer_offset,
+                init: init_func,
                 update: update_func,
             },
         }
+    }
+
+    fn reset(&mut self) {
+        self.start_time = Instant::now();
+        self.counter = 0;
+        self.ticks = 0;
+        self.frame_times.clear();
+
+        log::info!("Calling 'init' function...");
+        self.guest_state
+            .init
+            .call(&mut self.guest_state.store, ())
+            .expect("Failed to call 'init' function");
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -136,8 +151,10 @@ impl DemoApp {
             .expect("Failed to call 'update' function");
 
         self.update_ui(ctx, _frame, pixel_buffer);
-        //ctx.request_repaint_after(Duration::from_millis((1000.0 / 30.0) as u64));
-        ctx.request_repaint();
+
+        //ctx.request_repaint_after(web_time::Duration::from_millis((1000.0 / 10.0) as u64));
+        ctx.request_repaint(); // repaint as fast as possible
+
         self.counter += 1;
 
         self.frame_times.push_back(Instant::now());
@@ -146,7 +163,7 @@ impl DemoApp {
         }
     }
 
-    fn update_ui(&self, ctx: &egui::Context, _frame: &mut eframe::Frame, pixel_buffer: u32) {
+    fn update_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame, pixel_buffer: u32) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -189,6 +206,10 @@ impl DemoApp {
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
+
+                if ui.button("Reset").clicked() {
+                    self.reset();
+                }
             });
         });
 

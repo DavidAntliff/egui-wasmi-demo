@@ -1,5 +1,5 @@
 [watch]
-watch = ["../guest"]
+watch = [".", "../guest"]
 ignore = ["../guest/target"]
 
 [[hooks]]
