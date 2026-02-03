@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use core::cell::UnsafeCell;
+
 // Panic handler required for no_std
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
@@ -20,7 +22,9 @@ fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
 
 // Don't call the entry 'main' as it will get wrapped with C-style (argc, argv) parameters
 
-use core::cell::UnsafeCell;
+const TICKS_PER_SECOND: u64 = 256; // TODO: move to SDK
+
+const FPS: u64 = 60; // animation target speed
 
 const PIXEL_ROWS: usize = 16;
 const PIXEL_COLS: usize = 16;
@@ -41,12 +45,12 @@ static PIXEL_BUFFER: SyncWrapper<[u8; PIXEL_BUFFER_SIZE]> = SyncWrapper {
 //static STATIC_0001_IMAGE_DATA: &[u8] = include_bytes!("../assets/static-0001.raw");
 
 static ANIM_0001_IMAGE_DATA: [&[u8; 768]; 6] = [
-    include_bytes!("../assets/anim-0001_000.raw"),
-    include_bytes!("../assets/anim-0001_001.raw"),
-    include_bytes!("../assets/anim-0001_002.raw"),
-    include_bytes!("../assets/anim-0001_003.raw"),
-    include_bytes!("../assets/anim-0001_004.raw"),
-    include_bytes!("../assets/anim-0001_005.raw"),
+    include_bytes!("../target/anim-0001_000.raw"),
+    include_bytes!("../target/anim-0001_001.raw"),
+    include_bytes!("../target/anim-0001_002.raw"),
+    include_bytes!("../target/anim-0001_003.raw"),
+    include_bytes!("../target/anim-0001_004.raw"),
+    include_bytes!("../target/anim-0001_005.raw"),
 ];
 
 #[unsafe(no_mangle)]
@@ -84,20 +88,22 @@ pub extern "C" fn init() {
 
 /// Returns the offset to the pixel buffer to be displayed
 #[unsafe(no_mangle)]
-pub extern "C" fn update(frame: u64, host_buffer_offset: u32) -> u32 {
-    match frame % 600 {
-        0..200 => rainbow_cycle(frame, host_buffer_offset),
-        200..400 => proc0001(frame, host_buffer_offset),
-        400..600 => anim0001(frame, host_buffer_offset),
-        _ => panic!("Unreachable"),
+pub extern "C" fn update(ticks: u64, frame: u64, host_buffer_offset: u32) -> u32 {
+    // 256 ticks per second
+    match ticks % 3072 {
+        0..1024 => rainbow_cycle(ticks, frame, host_buffer_offset),
+        1024..2048 => proc0001(ticks, frame, host_buffer_offset),
+        2048.. => anim0001(ticks, frame, host_buffer_offset),
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rainbow_cycle(frame: u64, host_buffer_offset: u32) -> u32 {
-    //let ptr = buffer_ptr();
+pub extern "C" fn rainbow_cycle(ticks: u64, _frame: u64, host_buffer_offset: u32) -> u32 {
     // Use the host-provided buffer
     let ptr = host_buffer_offset as *mut u8;
+
+    // Time-based frame calculation
+    let frame = ticks * FPS / TICKS_PER_SECOND;
 
     for y in 0..PIXEL_ROWS {
         for x in 0..PIXEL_COLS {
@@ -136,18 +142,28 @@ fn hsv_to_rgb(hue: u8) -> (u8, u8, u8) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn anim0001(frame: u64, _host_buffer_offset: u32) -> u32 {
+pub extern "C" fn anim0001(ticks: u64, _frame: u64, _host_buffer_offset: u32) -> u32 {
     // Use our own (static) buffers
     // Scale down the frame number to control animation speed
-    let anim_frame = (frame / 16) % ANIM_0001_IMAGE_DATA.len() as u64;
+
+    // Time-based frame calculation
+    let frame = ticks * FPS / TICKS_PER_SECOND;
+
+    // Slow the animation down
+    let frame = frame / 16;
+
+    let anim_frame = frame % ANIM_0001_IMAGE_DATA.len() as u64;
     let frame_data = ANIM_0001_IMAGE_DATA[anim_frame as usize];
     frame_data.as_ptr() as u32
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn proc0001(frame: u64, _host_buffer_offset: u32) -> u32 {
+pub extern "C" fn proc0001(ticks: u64, _frame: u64, _host_buffer_offset: u32) -> u32 {
     // Use our own buffer
     let ptr = buffer_ptr();
+
+    // Time-based frame calculation
+    let frame = ticks * FPS / TICKS_PER_SECOND;
 
     for y in 0..PIXEL_ROWS {
         if y % 2 == 0 {
@@ -158,9 +174,7 @@ pub extern "C" fn proc0001(frame: u64, _host_buffer_offset: u32) -> u32 {
                 continue;
             }
             let hue = (x as u64 + frame) % 256;
-            //let hue = ((x + y) as u64 * 8 + frame * 2) % 256;
 
-            // Simple HSV to RGB (S=1, V=1)
             let (r, g, b) = hsv_to_rgb(hue as u8);
 
             let offset = (y * PIXEL_COLS + x) * PIXEL_CHANNELS;

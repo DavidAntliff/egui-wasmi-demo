@@ -2,12 +2,14 @@ use egui::emath::RectTransform;
 use egui::{Color32, Frame, Pos2, Rect, Sense, Vec2};
 use std::collections::VecDeque;
 use wasmi::{Engine, Linker, Memory, Module, Store, TypedFunc};
-use web_time::{Duration, Instant};
+use web_time::Instant;
 
-const FPS: f32 = 30.0;
 const FPS_WINDOW_SIZE: usize = 60;
+const TICKS_PER_SECOND: u64 = 256;
 
 pub struct DemoApp {
+    start_time: Instant,
+    ticks: u64,
     counter: u64,
     frame_times: VecDeque<Instant>,
     guest_state: GuestState,
@@ -21,7 +23,7 @@ pub struct GuestState {
     host_buffer_offset: u32,
 
     // Guest exports
-    update: TypedFunc<(u64, u32), u32>,
+    update: TypedFunc<(u64, u64, u32), u32>,
 }
 
 impl DemoApp {
@@ -86,7 +88,7 @@ impl DemoApp {
 
         log::info!("Fetching 'update' function...");
         let update_func = instance
-            .get_typed_func::<(u64, u32), u32>(&mut store, "update")
+            .get_typed_func::<(u64, u64, u32), u32>(&mut store, "update")
             .expect("Failed to get 'update' function");
 
         log::info!("Fetching 'init' function...");
@@ -100,7 +102,9 @@ impl DemoApp {
             .expect("Failed to call 'init' function");
 
         Self {
+            start_time: Instant::now(),
             counter: 0,
+            ticks: 0,
             frame_times: VecDeque::with_capacity(FPS_WINDOW_SIZE),
             guest_state: GuestState {
                 _engine: engine,
@@ -114,18 +118,26 @@ impl DemoApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // 256 ticks per second (millisecond)
+        let elapsed = Instant::now().duration_since(self.start_time);
+        self.ticks = elapsed.as_millis() as u64 * TICKS_PER_SECOND / 1000;
+
         let pixel_buffer = self
             .guest_state
             .update
             .call(
                 &mut self.guest_state.store,
-                (self.counter, self.guest_state.host_buffer_offset),
+                (
+                    self.ticks,
+                    self.counter,
+                    self.guest_state.host_buffer_offset,
+                ),
             )
             .expect("Failed to call 'update' function");
 
         self.update_ui(ctx, _frame, pixel_buffer);
-        ctx.request_repaint_after(Duration::from_millis((1000.0 / FPS) as u64));
-        //ctx.request_repaint();
+        //ctx.request_repaint_after(Duration::from_millis((1000.0 / 30.0) as u64));
+        ctx.request_repaint();
         self.counter += 1;
 
         self.frame_times.push_back(Instant::now());
@@ -152,6 +164,13 @@ impl DemoApp {
                 0.0
             };
             ui.label(format!("FPS: {fps:.1}"));
+
+            ui.label(format!("Frame: {}", self.counter));
+            ui.label(format!(
+                "Elapsed: {:.2} s",
+                Instant::now().duration_since(self.start_time).as_secs_f64()
+            ));
+            ui.label(format!("Ticks: {}", self.ticks));
         });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {

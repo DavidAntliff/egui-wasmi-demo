@@ -2,8 +2,8 @@ build: build-assets
     cargo build --release --target=wasm32-unknown-unknown
 
 build-assets:
-    convert assets/static-0001.png -depth 8 rgb:assets/static-0001.raw
-    convert assets/anim-0001.gif -coalesce -depth 8 rgb:assets/anim-0001_%03d.raw
+    convert assets/static-0001.png -depth 8 rgb:target/static-0001.raw
+    convert assets/anim-0001.gif -coalesce -depth 8 rgb:target/anim-0001_%03d.raw
 
 opt: build
     # Needs: cargo install wasm-opt

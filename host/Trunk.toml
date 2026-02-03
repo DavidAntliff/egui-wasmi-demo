@@ -1,2 +1,8 @@
-[build]
-filehash = false
+[watch]
+watch = ["../guest"]
+ignore = ["../guest/target"]
+
+[[hooks]]
+stage = "pre_build"
+command = "just"
+command_arguments = ["-f", "../guest/justfile", "build"]
