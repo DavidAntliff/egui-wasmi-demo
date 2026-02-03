@@ -79,22 +79,25 @@ pub extern "C" fn init() {
     let ptr = buffer_ptr();
     unsafe {
         core::ptr::write_bytes(ptr, 0, PIXEL_BUFFER_SIZE);
-        //core::ptr::copy_nonoverlapping(STATIC_0001_IMAGE_DATA.as_ptr(), ptr, PIXEL_BUFFER_SIZE);
+    }
+}
+
+/// Returns the offset to the pixel buffer to be displayed
+#[unsafe(no_mangle)]
+pub extern "C" fn update(frame: u64, host_buffer_offset: u32) -> u32 {
+    match frame % 600 {
+        0..200 => rainbow_cycle(frame, host_buffer_offset),
+        200..400 => proc0001(frame, host_buffer_offset),
+        400..600 => anim0001(frame, host_buffer_offset),
+        _ => panic!("Unreachable"),
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn update(frame: u64) {
-    if frame % 200 < 100 {
-        diagonal_rainbow(frame);
-    } else {
-        anim0001(frame);
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn diagonal_rainbow(frame: u64) {
-    let ptr = buffer_ptr();
+pub extern "C" fn rainbow_cycle(frame: u64, host_buffer_offset: u32) -> u32 {
+    //let ptr = buffer_ptr();
+    // Use the host-provided buffer
+    let ptr = host_buffer_offset as *mut u8;
 
     for y in 0..PIXEL_ROWS {
         for x in 0..PIXEL_COLS {
@@ -112,6 +115,8 @@ pub extern "C" fn diagonal_rainbow(frame: u64) {
             }
         }
     }
+
+    host_buffer_offset
 }
 
 // Simple HSV to RGB with S=1, V=1
@@ -131,14 +136,41 @@ fn hsv_to_rgb(hue: u8) -> (u8, u8, u8) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn anim0001(frame: u64) {
-    let ptr = buffer_ptr();
-
+pub extern "C" fn anim0001(frame: u64, _host_buffer_offset: u32) -> u32 {
+    // Use our own (static) buffers
     // Scale down the frame number to control animation speed
     let anim_frame = (frame / 16) % ANIM_0001_IMAGE_DATA.len() as u64;
-
     let frame_data = ANIM_0001_IMAGE_DATA[anim_frame as usize];
-    unsafe {
-        core::ptr::copy_nonoverlapping(frame_data.as_ptr(), ptr, PIXEL_BUFFER_SIZE);
+    frame_data.as_ptr() as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn proc0001(frame: u64, _host_buffer_offset: u32) -> u32 {
+    // Use our own buffer
+    let ptr = buffer_ptr();
+
+    for y in 0..PIXEL_ROWS {
+        if y % 2 == 0 {
+            continue;
+        }
+        for x in 0..PIXEL_COLS {
+            if x % 2 == 0 {
+                continue;
+            }
+            let hue = (x as u64 + frame) % 256;
+            //let hue = ((x + y) as u64 * 8 + frame * 2) % 256;
+
+            // Simple HSV to RGB (S=1, V=1)
+            let (r, g, b) = hsv_to_rgb(hue as u8);
+
+            let offset = (y * PIXEL_COLS + x) * PIXEL_CHANNELS;
+            unsafe {
+                ptr.add(offset).write(r);
+                ptr.add(offset + 1).write(g);
+                ptr.add(offset + 2).write(b);
+            }
+        }
     }
+
+    ptr as u32
 }

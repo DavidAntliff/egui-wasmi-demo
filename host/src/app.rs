@@ -18,10 +18,10 @@ pub struct GuestState {
     store: Store<()>,
     _linker: Linker<()>,
     memory: Memory,
+    host_buffer_offset: u32,
 
     // Guest exports
-    buffer_ptr: TypedFunc<(), i32>,
-    update: TypedFunc<u64, ()>,
+    update: TypedFunc<(u64, u32), u32>,
 }
 
 impl DemoApp {
@@ -59,6 +59,21 @@ impl DemoApp {
             .get_memory(&store, "memory")
             .expect("Failed to get guest memory");
 
+        let host_buffer_offset = memory.data(&store).len() as u32;
+        log::info!("Host pixel buffer at offset 0x{host_buffer_offset:04x}");
+
+        // Grow guest memory by 1 page (64KiB) to give some space for the host buffer
+        memory.grow(&mut store, 1).expect("Failed to grow memory");
+        log::info!(
+            "Guest memory size: 0x{:04x} bytes",
+            memory.data(&store).len()
+        );
+
+        assert!(
+            host_buffer_offset as usize + 768 <= (memory.data_size(&store)),
+            "Not enough memory for host pixel buffer"
+        );
+
         // log::info!("Fetching 'mem_write' function...");
         // let mem_write = instance
         //     .get_typed_func::<(u32, u32), ()>(&mut store, "mem_write")
@@ -68,23 +83,10 @@ impl DemoApp {
         // let _mem_read = instance
         //     .get_typed_func::<u32, u32>(&mut store, "mem_read")
         //     .expect("Failed to get 'mem_read' function");
-        //
-        // log::info!("Calling 'mem_write' function...");
-        // mem_write
-        //     .call(&mut store, (0, 0xff))
-        //     .expect("Failed to call 'mem_write' function");
-        // mem_write
-        //     .call(&mut store, (3, 0xaa))
-        //     .expect("Failed to call 'mem_write' function");
-
-        log::info!("Fetching 'buffer_ptr' function...");
-        let buffer_ptr = instance
-            .get_typed_func::<(), i32>(&mut store, "buffer_ptr")
-            .expect("Failed to get 'buffer_ptr' function");
 
         log::info!("Fetching 'update' function...");
         let update_func = instance
-            .get_typed_func::<u64, ()>(&mut store, "update")
+            .get_typed_func::<(u64, u32), u32>(&mut store, "update")
             .expect("Failed to get 'update' function");
 
         log::info!("Fetching 'init' function...");
@@ -105,19 +107,23 @@ impl DemoApp {
                 store,
                 _linker: linker,
                 memory,
-                buffer_ptr,
+                host_buffer_offset,
                 update: update_func,
             },
         }
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.guest_state
+        let pixel_buffer = self
+            .guest_state
             .update
-            .call(&mut self.guest_state.store, self.counter)
+            .call(
+                &mut self.guest_state.store,
+                (self.counter, self.guest_state.host_buffer_offset),
+            )
             .expect("Failed to call 'update' function");
 
-        self.update_ui(ctx, _frame);
+        self.update_ui(ctx, _frame, pixel_buffer);
         ctx.request_repaint_after(Duration::from_millis((1000.0 / FPS) as u64));
         //ctx.request_repaint();
         self.counter += 1;
@@ -128,7 +134,7 @@ impl DemoApp {
         }
     }
 
-    fn update_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update_ui(&self, ctx: &egui::Context, _frame: &mut eframe::Frame, pixel_buffer: u32) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -211,13 +217,6 @@ impl DemoApp {
                     Color32::BLACK,
                 ));
 
-                // Get the pixel buffer as a byte offset into WASM guest memory
-                let pixel_buffer =
-                    self.guest_state
-                        .buffer_ptr
-                        .call(&mut self.guest_state.store, ())
-                        .expect("Failed to call 'buffer_ptr'") as usize;
-
                 let mut grid_shapes = Vec::new();
                 for row in 0..ROWS {
                     for col in 0..COLS {
@@ -236,7 +235,7 @@ impl DemoApp {
 
                         let mut color_buf = [0u8; 3];
                         let pixel_id = (row * COLS + col) * 3usize;
-                        let offset = pixel_buffer + pixel_id;
+                        let offset = pixel_buffer as usize + pixel_id;
 
                         self.guest_state
                             .memory
@@ -244,12 +243,6 @@ impl DemoApp {
                             .expect("Should read pixel buffer memory");
 
                         let color = Color32::from_rgb(color_buf[0], color_buf[1], color_buf[2]);
-
-                        // let color = if row * COLS + col == (counter as usize % (ROWS * COLS)) {
-                        //     Color32::from_rgb(200, 200, 200)
-                        // } else {
-                        //     Color32::from_rgb(20, 20, 20)
-                        // };
 
                         grid_shapes.push(egui::Shape::rect_filled(cell_screen, 1.0, color));
                     }
