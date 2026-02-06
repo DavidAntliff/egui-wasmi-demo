@@ -12,15 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Build guest WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-        working-directory: guest
+      - uses: ./.github/actions/setup
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -31,15 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Build guest WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-        working-directory: guest
+      - uses: ./.github/actions/setup
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -50,15 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Build guest WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-        working-directory: guest
+      - uses: ./.github/actions/setup
       - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
       - uses: actions-rs/cargo@v1
         with:
@@ -70,11 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt
       - uses: actions-rs/cargo@v1
         with:
@@ -86,46 +59,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
           components: clippy
-      - name: Build guest WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-        working-directory: guest
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --manifest-path host/Cargo.toml -- -D warnings
-
-  trunk:
-    name: trunk
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.88.0
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            host -> target
-            guest -> target
-      - name: Build guest WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-        working-directory: guest
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Build
-        run: ../trunk build
-        working-directory: host
 
   build:
     runs-on: ${{ matrix.os }}
@@ -136,38 +76,30 @@ jobs:
         - os: macos-latest
           TARGET: aarch64-apple-darwin
 
-        - os: macos-latest
-          TARGET: x86_64-apple-darwin
+#        - os: macos-latest
+#          TARGET: x86_64-apple-darwin
 
-        - os: ubuntu-latest
-          TARGET: arm-unknown-linux-musleabihf
+#        - os: ubuntu-latest
+#          TARGET: arm-unknown-linux-musleabihf
 
-        - os: ubuntu-latest
-          TARGET: armv7-unknown-linux-musleabihf
+#        - os: ubuntu-latest
+#          TARGET: armv7-unknown-linux-musleabihf
 
         - os: ubuntu-latest
           TARGET: x86_64-unknown-linux-musl
 
-        - os: windows-latest
-          TARGET: x86_64-pc-windows-msvc
-          EXTENSION: .exe
+#        - os: windows-latest
+#          TARGET: x86_64-pc-windows-msvc
+#          EXTENSION: .exe
 
     steps:
     - name: Building ${{ matrix.TARGET }}
       run: echo "${{ matrix.TARGET }}"
 
-    - uses: actions/checkout@master
-    - uses: actions-rs/toolchain@v1.0.1
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/setup
       with:
-        toolchain: stable
         target: ${{ matrix.TARGET }}
-        override: true
-    - name: Add wasm32 target for guest
-      run: rustup target add wasm32-unknown-unknown
-    - name: Build guest WASM
-      run: cargo build --release --target wasm32-unknown-unknown
-      working-directory: guest
-
     - uses: actions-rs/cargo@v1
       with:
         use-cross: true

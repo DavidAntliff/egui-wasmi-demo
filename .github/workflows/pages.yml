@@ -19,12 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # repo checkout
-      - name: Setup toolchain for wasm
-        run: |
-          rustup update stable
-          rustup default stable
-          rustup set profile minimal
-          rustup target add wasm32-unknown-unknown
+      - uses: ./.github/actions/setup
       - name: Rust Cache # cache the rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:

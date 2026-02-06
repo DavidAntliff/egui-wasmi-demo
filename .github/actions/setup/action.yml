@@ -1,0 +1,37 @@
+name: 'Setup'
+description: 'Setup Rust toolchain, just, and build guest WASM'
+inputs:
+  toolchain:
+    description: 'Rust toolchain version'
+    default: 'stable'
+  target:
+    description: 'Rust target'
+    default: 'wasm32-unknown-unknown'
+  components:
+    description: 'Additional components'
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ inputs.toolchain }}
+        target: ${{ inputs.target }}
+        override: true
+        components: ${{ inputs.components }}
+    - uses: extractions/setup-just@v2
+    - name: Install ImageMagick
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          sudo apt-get update && sudo apt-get install -y imagemagick
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          brew install imagemagick
+        fi
+    - name: Add wasm32 target
+      shell: bash
+      run: rustup target add wasm32-unknown-unknown
+    - name: Build guest WASM
+      shell: bash
+      run: just build-guest

@@ -2,6 +2,8 @@ build: build-assets
     cargo build --release --target=wasm32-unknown-unknown
 
 build-assets:
+    mkdir -p target
+    # TODO: change convert to magick, if IM7 is installed
     convert assets/static-0001.png -depth 8 rgb:target/static-0001.raw
     convert assets/anim-0001.gif -coalesce -depth 8 rgb:target/anim-0001_%03d.raw
 
@@ -26,7 +28,6 @@ print: build
 
 clean:
     cargo clean
-    rm assets/static-0001.raw
 
 ci:
     cargo clippy -- -D warnings
